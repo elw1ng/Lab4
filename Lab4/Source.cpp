@@ -122,6 +122,77 @@ private:
 		}
 		return values;
 	}
+	int16_t* interpolate(const int16_t* data, const int size, const double change) {
+		auto* data_copy = new int16_t[size];
+		for (auto i = 0; i < size; i++)
+			data_copy[i] = data[i];
+
+		auto* splines = new indices[size];
+		auto** first_matrix = new double* [index_count_];
+		for (auto i = 0; i < index_count_; ++i)
+			first_matrix[i] = new double[index_count_];
+
+		auto* first_result = new double[index_count_];
+
+		for (auto i = 0; i < index_count_; ++i)
+			for (auto j = 0; j < index_count_; ++j)
+				first_matrix[i][j] = !i ? 1 : 0;
+
+		first_matrix[1][3] = 1; first_matrix[2][0] = 3;
+		first_matrix[2][1] = 2; first_matrix[2][2] = 1;
+		first_matrix[3][0] = 6; first_matrix[3][1] = 2;
+
+		first_result[0] = data_copy[1]; first_result[1] = data_copy[0];
+		first_result[2] = (data_copy[2] - data_copy[0]) / 2;
+		first_result[3] = (data_copy[3] + data_copy[1] - 2 * data_copy[2]) / 2;
+
+		splines[0] = indices(gauss(first_matrix, first_result, index_count_));
+
+		delete_matrix(first_matrix, index_count_);
+		delete[] first_result;
+
+		for (auto i = 1; i < size - 1; ++i) {
+			auto** matrix = new double* [index_count_];
+			for (auto j = 0; j < index_count_; ++j)
+				matrix[j] = new double[index_count_];
+			auto* result = new double[index_count_];
+			for (auto j = 0; j < index_count_; ++j)
+				for (auto k = 0; k < index_count_; ++k)
+					matrix[j][k] = !j ? 1 : 0;
+
+			matrix[1][3] = 1; matrix[2][2] = 1;
+			matrix[3][1] = 2; matrix[3][0] = 3; matrix[3][2] = 1;
+
+			result[0] = data_copy[i + 1];
+			result[1] = data_copy[i];
+			result[2] = splines[i - 1].a * 3 + 2 *
+				splines[i - 1].b + splines[i - 1].c;
+			if (i != size - 2)
+				result[3] = (data_copy[i + 2] - data_copy[i]) / 2;
+			else
+				result[3] = data_copy[i + 1] - data_copy[i];
+
+			splines[i] = indices(gauss(matrix, result, index_count_));
+
+			delete_matrix(matrix, index_count_);
+			delete[] result;
+		}
+
+		splines[size - 1] = splines[size - 2];
+		auto* new_data = new int16_t[unsigned(size * change + 10)];
+		for (auto j = 0; j < size * change; ++j) {
+			const auto k = j * (size - 1) / (size * change - 1);
+			new_data[j] = splines[int(k)].a * pow(k - int(k), 3) +
+				splines[int(k)].b * pow(k - int(k), 2) +
+				splines[int(k)].c * pow(k - int(k), 1) +
+				splines[int(k)].d;
+		}
+
+		delete[] splines;
+		delete[] data_copy;
+
+		return new_data;
+	}
 
 	template<typename T>
 	static void delete_matrix(T** matrix, const int size) {
