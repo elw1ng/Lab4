@@ -60,10 +60,12 @@ public:
 		else cerr << "Can not open the file " + filename;
 	}
 
-	void write(const string& filename) {
+	void write(const string& filename)
+	{
 		ofstream out(filename, ios::binary);
-		if (out.is_open()) {
-
+		
+		if (out.is_open()) 
+		{
 			out.write(reinterpret_cast<char*>(&riff_), sizeof riff_);
 			out.write(reinterpret_cast<char*>(&chunk_1_), sizeof chunk_1_);
 			out.write(reinterpret_cast<char*>(&chunk_2_), sizeof chunk_2_);
@@ -78,6 +80,56 @@ public:
 	}
 
 private:
+
+	struct indices {
+		indices() = default;
+
+		explicit indices(const double* values) {
+			a = values[0]; b = values[1];
+			c = values[2]; d = values[3];
+		}
+
+		double a, b, c, d;
+	};
+	
+	double* gauss(double** matrix, double* results, const int size) const {
+		auto* values = new double[size];
+		for (auto i = 0; i < size; ++i) {
+			auto value = matrix[i][i];
+			if (value == 0) {
+				auto local = i + 1;
+				while (value == 0) {
+					value = matrix[local++][i];
+				}
+				swap(matrix[i], matrix[--local]);
+				swap(results[i], results[local]);
+			}
+			for (auto j = i + 1; j < size; ++j) {
+				const auto index = -matrix[j][i] / value;
+				for (auto k = i; k < size; ++k) {
+					matrix[j][k] += matrix[i][k] * index;
+				}
+				results[j] += results[i] * index;
+			}
+		}
+		for (auto i = size - 1; i >= 0; --i) {
+			const auto index = matrix[i][i];
+			auto result = results[i];
+			for (auto j = i + 1; j < size; ++j) {
+				result -= matrix[i][j] * values[j];
+			}
+			values[i] = result / index;
+		}
+		return values;
+	}
+
+	template<typename T>
+	static void delete_matrix(T** matrix, const int size) {
+		for (auto i = 0; i < size; ++i) {
+			delete[] matrix[i];
+		}
+		delete[] matrix;
+	}
 	
 	const int index_count_ = 4;
 	riff_header riff_ = {};
