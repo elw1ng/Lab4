@@ -37,7 +37,6 @@ public:
 	explicit music(const string& filename) : num_samples_(0), data_(nullptr) {
 		read(filename);
 	}
-
 	void read(const string& filename)
 	{
 		ifstream in(filename, ios::binary);
@@ -57,6 +56,23 @@ public:
 			}
 
 			in.close();
+		}
+		else cerr << "Can not open the file " + filename;
+	}
+
+	void write(const string& filename) {
+		ofstream out(filename, ios::binary);
+		if (out.is_open()) {
+
+			out.write(reinterpret_cast<char*>(&riff_), sizeof riff_);
+			out.write(reinterpret_cast<char*>(&chunk_1_), sizeof chunk_1_);
+			out.write(reinterpret_cast<char*>(&chunk_2_), sizeof chunk_2_);
+
+			for (auto i = 0; i < num_samples_; ++i) {
+				out.write(reinterpret_cast<char*>(&data_[i]), chunk_1_.bits_per_sample / 8);
+			}
+
+			out.close();
 		}
 		else cerr << "Can not open the file " + filename;
 	}
